@@ -1,0 +1,12 @@
+--- data\repo\app.py
++++ data\repo\app.py.refactored
+@@ -5,7 +5,7 @@
+     x = 10
+     y = 5
+     result = add_numbers(x, y)
+-    print("The result is: " + result)  # Bug: mixing int & string
++    print("The result is: " + str(result)) # FIXED: added str() conversion
+ 
+ if __name__ == "__main__":
+-    main()
++    main()

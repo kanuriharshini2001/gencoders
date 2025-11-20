@@ -1,0 +1,54 @@
+{
+  "data\\repo\\app.py": {
+    "summary": "This file implements a helper for a code review tool.",
+    "symbols": [
+      {
+        "name": "LLM",
+        "type": "class",
+        "desc": "LLM wrapper"
+      }
+    ],
+    "smells": [
+      "missing type hints on mock functions"
+    ]
+  },
+  "data\\repo\\logging_config.py": {
+    "summary": "This file implements a helper for a code review tool.",
+    "symbols": [
+      {
+        "name": "LLM",
+        "type": "class",
+        "desc": "LLM wrapper"
+      }
+    ],
+    "smells": [
+      "missing type hints on mock functions"
+    ]
+  },
+  "data\\repo\\sample_code.py": {
+    "summary": "This file implements a helper for a code review tool.",
+    "symbols": [
+      {
+        "name": "LLM",
+        "type": "class",
+        "desc": "LLM wrapper"
+      }
+    ],
+    "smells": [
+      "missing type hints on mock functions"
+    ]
+  },
+  "data\\repo\\utils.py": {
+    "summary": "This file implements a helper for a code review tool.",
+    "symbols": [
+      {
+        "name": "LLM",
+        "type": "class",
+        "desc": "LLM wrapper"
+      }
+    ],
+    "smells": [
+      "missing type hints on mock functions"
+    ]
+  }
+}

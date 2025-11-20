@@ -1,0 +1,1 @@
+You are a test generator. Given a function signature and behavior, produce pytest-style unit tests that check typical and edge cases. Return tests as a single string file.

@@ -1,0 +1,7 @@
+openai
+python-dotenv
+streamlit
+flake8
+bandit
+gitpython
+pytest

@@ -1,0 +1,90 @@
+{
+  "data\\repo\\app.py": {
+    "issues": [
+      {
+        "id": "ISSUE-1",
+        "description": "Use of hardcoded secret key 'SECRET-12345-HARDCODED'",
+        "lines": [
+          5
+        ],
+        "severity": 5,
+        "evidence": "security smell"
+      },
+      {
+        "id": "ISSUE-2",
+        "description": "Unnecessary complex logging configuration",
+        "lines": [
+          8
+        ],
+        "severity": 2,
+        "evidence": "code smell"
+      }
+    ]
+  },
+  "data\\repo\\logging_config.py": {
+    "issues": [
+      {
+        "id": "ISSUE-1",
+        "description": "Use of hardcoded secret key 'SECRET-12345-HARDCODED'",
+        "lines": [
+          5
+        ],
+        "severity": 5,
+        "evidence": "security smell"
+      },
+      {
+        "id": "ISSUE-2",
+        "description": "Unnecessary complex logging configuration",
+        "lines": [
+          8
+        ],
+        "severity": 2,
+        "evidence": "code smell"
+      }
+    ]
+  },
+  "data\\repo\\sample_code.py": {
+    "issues": [
+      {
+        "id": "ISSUE-1",
+        "description": "Use of hardcoded secret key 'SECRET-12345-HARDCODED'",
+        "lines": [
+          5
+        ],
+        "severity": 5,
+        "evidence": "security smell"
+      },
+      {
+        "id": "ISSUE-2",
+        "description": "Unnecessary complex logging configuration",
+        "lines": [
+          8
+        ],
+        "severity": 2,
+        "evidence": "code smell"
+      }
+    ]
+  },
+  "data\\repo\\utils.py": {
+    "issues": [
+      {
+        "id": "ISSUE-1",
+        "description": "Use of hardcoded secret key 'SECRET-12345-HARDCODED'",
+        "lines": [
+          5
+        ],
+        "severity": 5,
+        "evidence": "security smell"
+      },
+      {
+        "id": "ISSUE-2",
+        "description": "Unnecessary complex logging configuration",
+        "lines": [
+          8
+        ],
+        "severity": 2,
+        "evidence": "code smell"
+      }
+    ]
+  }
+}
