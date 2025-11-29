@@ -7,26 +7,35 @@ from openai import OpenAI, APIError
 load_dotenv()
 
 # --- Google Gemini Configuration (Primary) ---
-GOOGLE_KEY = os.getenv("GOOGLE_API_KEY")  # <-- Variable is defined here
+GOOGLE_KEY = os.getenv("GOOGLE_API_KEY")
 gemini_client = None
-if not GOOGLE_KEY:  # <-- This line is now fixed
-    print("Warning: GOOGLE_API_KEY not found in .env. Gemini calls will fail.")
+
+if not GOOGLE_KEY:
+    print("Error: GOOGLE_API_KEY not found in .env. Gemini calls will fail.")
 else:
     try:
         genai.configure(api_key=GOOGLE_KEY)
         gemini_client = genai.GenerativeModel("gemini-flash-latest") 
-        print("Gemini client configured successfully.")
+        # print("Gemini client configured successfully.") # Optional: Comment this out too if you want zero startup logs
     except Exception as e:
         print(f"Error configuring Gemini client: {e}")
 
-# --- OpenAI Configuration (Fallback) ---
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-openai_client = None
-if not OPENAI_KEY:
-    print("Warning: OPENAI_API_KEY not found in .env. OpenAI calls will fail.")
-else:
-    openai_client = OpenAI(api_key=OPENAI_KEY)
-    print("OpenAI client configured.")
+# --- OpenAI Configuration (Lazy Load) ---
+# We don't check for the key here anymore to avoid the warning.
+openai_client = None 
+
+def get_openai_client():
+    """Helper to load OpenAI client only when needed."""
+    global openai_client
+    if openai_client:
+        return openai_client
+        
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    
+    openai_client = OpenAI(api_key=api_key)
+    return openai_client
 
 
 def call_llm(
@@ -71,25 +80,26 @@ def call_llm(
                 generation_config=generation_config,
                 safety_settings=safety_settings
             )
-            # Add a check for a valid response before accessing .text
+            
             if not response.parts:
                 return "Gemini LLM Error: Response was blocked by API (safety or other)."
                 
             return response.text.strip().replace("```python", "").replace("```", "").strip()
         except ValueError as e:
-            # Catch the "Invalid operation" error more gracefully
             return f"Gemini LLM error: Response was empty or blocked. Finish Reason: {e}"
         except Exception as e:
             return f"Gemini LLM error: {e}"
 
     elif provider == "openai":
-        if not openai_client:
+        # Load client on demand
+        client = get_openai_client()
+        if not client:
             return "LLM Error: OpenAI client is not configured. Check OPENAI_API_KEY."
         
         current_model = model or "gpt-4o-mini"
         
         try:
-            resp = openai_client.chat.completions.create(
+            resp = client.chat.completions.create(
                 model=current_model,
                 messages=[
                     {"role": "system", "content": final_system_prompt},

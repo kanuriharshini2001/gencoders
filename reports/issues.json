@@ -1,8 +1,7 @@
 [
   {
-    "line": 1,
-    "type": "style",
-    "issue": "Missing docstring in function",
-    "severity": "medium"
+    "line": 3,
+    "issue": "Security Vulnerability: Hardcoded secret/API key ('sk-12345') found. This must be loaded from environment variables or a secure vault.",
+    "severity": "High"
   }
 ]

@@ -1,84 +1,51 @@
-That is a fantastic refactoring job! You took a piece of code that had a few hidden problems and made it clean, correct, and much safer.
+That is a fantastic piece of refactoring! You’ve taken a critical security vulnerability and fixed it using a standard industry best practice. This is a huge step in writing robust, secure code.
 
-The goal of refactoring is always to make the code better without changing what it does (its intended output). Let�s walk through the improvements you made!
-
-***
-
-## 1. Summary of Changes
-
-The refactoring focused on three major areas:
-
-1.  **Fixing a critical bug** (a `NameError`) that prevented the original function from running correctly.
-2.  **Improving documentation** by adding a docstring.
-3.  **Addressing a security risk** by removing unused, sensitive data.
+Here is a breakdown of the changes you made and the important programming principles behind them.
 
 ***
 
-## 2. Detailed Explanation of Changes
+## Summary of Changes
 
-Here is a breakdown of the specific lines that were changed and why those changes are important.
-
-### Change 1: Adding Documentation
-
-| Original Code | Refactored Code |
-| :--- | :--- |
-| `def calculate_total(price, tax):` | `def calculate_total(price, tax):` |
-| *(No docstring here)* | `"""Calculates the total price including tax."""` |
-
-**What was changed:**
-You added a docstring (the text enclosed in triple quotes `"""..."""`) immediately after the function definition.
-
-**Why it was changed (Referencing the Issues Report):**
-The **[ISSUES REPORT]** specifically flagged: *Line 1: Missing docstring in function*. Docstrings are essential for explaining what a function does, what inputs it expects, and what it returns.
-
-**Best Practice: Self-Documenting Code**
-Adding a docstring is a core Python best practice. It allows other developers (or future you!) to quickly understand the function without having to read the entire implementation. Tools can also automatically generate documentation from these strings.
-
----
-
-### Change 2: Fixing the Calculation Bug
-
-| Original Code | Refactored Code |
-| :--- | :--- |
-| `total = price + (price * tax_rate)` | `total = price + (price * tax)` |
-
-**What was changed:**
-You corrected the variable name inside the calculation from `tax_rate` to `tax`.
-
-**Why it was changed:**
-In the original code, the function was defined to accept a parameter named `tax`. However, the calculation tried to use a variable named `tax_rate`. This would have caused a **`NameError`** when the code ran, because the program didn't know what `tax_rate` was. By changing it to `tax`, you correctly reference the input variable the function receives.
-
-**Best Practice: Correctness and Consistency**
-This change ensures the code is correct and consistent. Always make sure the variables you use inside a function match the names of the parameters you defined for that function. This is the most crucial step for ensuring the code actually works!
-
----
-
-### Change 3: Removing Unused Sensitive Data
-
-| Original Code | Refactored Code |
-| :--- | :--- |
-| `api_token = "sk-12345-SECRET-KEY"` | *(Line removed)* |
-
-**What was changed:**
-You completely removed the line defining the `api_token`.
-
-**Why it was changed:**
-This line introduced two problems:
-1.  **Unused Code:** The `api_token` was defined but never used within the `calculate_total` function. Unused code adds clutter and confusion.
-2.  **Security Risk:** Hardcoding sensitive information (like API keys or secret tokens) directly into the source code is a major security vulnerability. If this code were ever shared publicly (e.g., on GitHub), the secret key would be exposed.
-
-**Best Practice: Separation of Concerns & Security**
-A function should only contain the logic necessary to perform its stated task. Since calculating the total price doesn't require an API key, that key should be removed. If the key *were* needed, the best practice would be to load it securely from an environment variable, not hardcode it.
+The primary goal of this refactoring was to eliminate a **high-severity security vulnerability** by removing a hardcoded secret key. You achieved this by introducing the `os` module and configuring the application to load the secret key from the operating system's environment variables instead of storing it directly in the source code.
 
 ***
 
-## Summary of Best Practices Applied
+## 1. What Was Changed: Importing the `os` Module
 
-By making these changes, you successfully applied several key programming best practices:
+**What Changed:**
+You added the line `import os` at the very top of the file.
 
-1.  **Documentation:** You made the code easier to understand by adding a docstring.
-2.  **Debugging:** You fixed a critical `NameError`, ensuring the function runs correctly.
-3.  **Clean Code:** You removed unused variables, making the function shorter and easier to maintain.
-4.  **Security:** You eliminated a hardcoded secret, improving the overall security posture of the application.
+**Why It Changed (Referencing the Report):**
+To fix the security issue, we need a way for the Python program to communicate with the operating system and ask, "Hey, do you have a variable named `API_KEY`?" The built-in `os` module provides the tools necessary to interact with the operating system, including accessing environment variables.
 
-Great work! Your refactored code is much more robust and professional.
+**Best Practice: Using Standard Libraries**
+When you need to perform tasks that interact outside of your immediate program (like reading files, checking the time, or accessing system settings), Python’s standard library modules (like `os`) are the go-to solution. They are reliable, well-tested, and built into the language.
+
+***
+
+## 2. What Was Changed: Loading the Secret Key Securely
+
+**What Changed:**
+The line defining the secret key was changed from:
+
+key = "sk-12345"
+
+to:
+
+key = os.environ.get("API_KEY")
+
+
+**Why It Changed (Referencing the Report):**
+The **[ISSUES REPORT]** flagged the hardcoded string `"sk-12345"` as a **Security Vulnerability**. If this code were ever shared publicly (e.g., pushed to GitHub), that secret key would be instantly compromised, allowing unauthorized access to whatever service it controls.
+
+By changing it to `os.environ.get("API_KEY")`, the program no longer stores the secret itself. Instead, it looks for a variable named `API_KEY` that is set *outside* the application—in the environment where the code is running.
+
+**Best Practice: Configuration Management (Never Hardcode Secrets)**
+This change adheres to one of the most critical security principles in modern development: **Never hardcode secrets, credentials, or API keys into your source code.**
+
+This practice is often called **"Configuration stored in the environment"** (a principle from the famous "Twelve-Factor App" methodology).
+
+*   **Security:** If your code is breached or accidentally shared, the secrets remain safe because they are not in the file itself.
+*   **Flexibility:** You can easily run the same code in different environments (like testing, staging, and production) just by changing the environment variables, without ever modifying the Python file.
+
+Great job making this code much safer and more professional! Keep up the excellent work!

@@ -1,6 +1,5 @@
-def calculate_total(price, tax):
-    """Calculates the total price including tax."""
-    total = price + (price * tax)
-    return total
+import os
 
-print(calculate_total(100, 0.05))
+def crash_me(data):
+    key = os.environ.get("API_KEY")
+    return data[0]
