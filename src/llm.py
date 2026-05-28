@@ -19,6 +19,16 @@ else:
     except Exception as e:
         print(f"Error configuring Gemini client: {e}")
 
+# --- Models to try in order ---
+# If one hits quota limit, automatically tries next one
+GEMINI_MODELS = [
+    "gemini-2.0-flash-lite",      # Best free quota
+    "gemini-2.5-flash-lite",      # Second choice
+    "gemini-flash-lite-latest",   # Always latest lite
+    "gemini-2.0-flash",           # Fallback
+    "gemini-flash-latest",        # Last resort
+]
+
 # --- OpenAI Configuration (Lazy Load) ---
 openai_client = None
 
@@ -33,6 +43,92 @@ def get_openai_client():
     openai_client = OpenAI(api_key=api_key)
     return openai_client
 
+def call_gemini_with_fallback(
+    full_prompt: str,
+    max_tokens: int,
+    temperature: float,
+    preferred_model: str = None
+) -> str:
+    """
+    Tries multiple Gemini models in order.
+    If one fails with quota error, automatically tries next.
+    """
+    # Build model list — preferred model first if specified
+    models_to_try = []
+    if preferred_model:
+        models_to_try.append(preferred_model)
+    for m in GEMINI_MODELS:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    safety_settings = [
+        types.SafetySetting(
+            category="HARM_CATEGORY_HARASSMENT",
+            threshold="BLOCK_NONE"
+        ),
+        types.SafetySetting(
+            category="HARM_CATEGORY_HATE_SPEECH",
+            threshold="BLOCK_NONE"
+        ),
+        types.SafetySetting(
+            category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold="BLOCK_NONE"
+        ),
+        types.SafetySetting(
+            category="HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold="BLOCK_NONE"
+        ),
+    ]
+
+    last_error = None
+
+    for model in models_to_try:
+        try:
+            print(f"Trying model: {model}")
+            response = gemini_client.models.generate_content(
+                model=model,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=temperature,
+                    safety_settings=safety_settings
+                )
+            )
+
+            if not response.text:
+                print(f"Model {model} returned empty response, trying next...")
+                continue
+
+            print(f"Success with model: {model}")
+            return response.text.strip().replace("```", "").strip()
+
+        except Exception as e:
+            error_str = str(e)
+            last_error = error_str
+
+            # Quota exceeded — try next model
+            if "429" in error_str:
+                print(f"Model {model} quota exceeded, trying next...")
+                continue
+
+            # Model not found — try next model
+            elif "404" in error_str:
+                print(f"Model {model} not found, trying next...")
+                continue
+
+            # Service unavailable — try next model
+            elif "503" in error_str:
+                print(f"Model {model} unavailable, trying next...")
+                continue
+
+            # Unknown error — try next model
+            else:
+                print(f"Model {model} error: {e}, trying next...")
+                continue
+
+    # All models failed
+    return f"Gemini LLM error: All models exhausted. Last error: {last_error}"
+
 def call_llm(
     prompt: str,
     system_prompt: str = None,
@@ -43,6 +139,7 @@ def call_llm(
 ) -> str:
     """
     Calls the specified LLM provider with the given prompt.
+    Automatically falls back to next model on quota errors.
     """
     final_system_prompt = system_prompt or "You are a helpful senior software engineer."
 
@@ -50,46 +147,14 @@ def call_llm(
         if not gemini_client:
             return "LLM Error: Gemini client is not configured. Check GOOGLE_API_KEY."
 
-        # ✅ Fixed model name — 1500 requests/day free tier
-        current_model = model or "gemini-2.0-flash-lite"
-
         full_prompt = f"System: {final_system_prompt}\n\nUser: {prompt}"
 
-        try:
-            response = gemini_client.models.generate_content(
-                model=current_model,
-                contents=full_prompt,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=max_tokens,
-                    temperature=temperature,
-                    safety_settings=[
-                        types.SafetySetting(
-                            category="HARM_CATEGORY_HARASSMENT",
-                            threshold="BLOCK_NONE"
-                        ),
-                        types.SafetySetting(
-                            category="HARM_CATEGORY_HATE_SPEECH",
-                            threshold="BLOCK_NONE"
-                        ),
-                        types.SafetySetting(
-                            category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                            threshold="BLOCK_NONE"
-                        ),
-                        types.SafetySetting(
-                            category="HARM_CATEGORY_DANGEROUS_CONTENT",
-                            threshold="BLOCK_NONE"
-                        ),
-                    ]
-                )
-            )
-
-            if not response.text:
-                return "Gemini LLM Error: Response was blocked by API."
-
-            return response.text.strip().replace("```python", "").replace("```", "").strip()
-
-        except Exception as e:
-            return f"Gemini LLM error: {e}"
+        return call_gemini_with_fallback(
+            full_prompt=full_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            preferred_model=model
+        )
 
     elif provider == "openai":
         client = get_openai_client()
