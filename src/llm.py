@@ -51,7 +51,7 @@ def call_llm(
             return "LLM Error: Gemini client is not configured. Check GOOGLE_API_KEY."
 
         # ✅ Fixed model name — 1500 requests/day free tier
-        current_model = model or "gemini-2.0-flash"
+        current_model = model or "gemini-1.5-flash"
 
         full_prompt = f"System: {final_system_prompt}\n\nUser: {prompt}"
 
