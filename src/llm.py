@@ -1,183 +1,129 @@
-# src/llm.py
-from dotenv import load_dotenv
+# scripts/run_review.py
+import json
 import os
-from google import genai
-from google.genai import types
-from openai import OpenAI, APIError
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+import time
+from agents.bug_agent import find_issues_in_code
+from agents.refactor_agent import refactor_code
+from agents.explainer_agent import explain_changes
 
-load_dotenv()
+REPORT_DIR = Path("reports")
+REPORT_DIR.mkdir(exist_ok=True)
 
-# --- Google Gemini Configuration (Primary) ---
-GOOGLE_KEY = os.getenv("GOOGLE_API_KEY")
-gemini_client = None
+LANGUAGE_EXTENSIONS = {
+    ".py": "Python",
+    ".java": "Java",
+    ".js": "JavaScript",
+    ".ts": "TypeScript",
+    ".cpp": "C++",
+    ".c": "C",
+    ".cs": "C#",
+    ".go": "Go",
+    ".rb": "Ruby",
+    ".sh": "Shell",
+    ".rs": "Rust"
+}
 
-if not GOOGLE_KEY:
-    print("Error: GOOGLE_API_KEY not found in .env. Gemini calls will fail.")
-else:
-    try:
-        gemini_client = genai.Client(api_key=GOOGLE_KEY)
-    except Exception as e:
-        print(f"Error configuring Gemini client: {e}")
+def run_pipeline_from_string(
+    code: str,
+    language: str = "Python"
+):
+    total_start = time.time()
+    print(f"\n🚀 Starting [{language}] analysis...")
 
-# --- Models to try in order ---
-# If one hits quota limit, automatically tries next one
-GEMINI_MODELS = [
-    "gemini-2.0-flash-lite",      # Best free quota
-    "gemini-2.5-flash-lite",      # Second choice
-    "gemini-flash-lite-latest",   # Always latest lite
-    "gemini-2.0-flash",           # Fallback
-    "gemini-flash-latest",        # Last resort
-]
+    # Step 1 — Analyze FIRST
+    # Refactor needs this result
+    print("1️⃣ Analyzing code...")
+    t1 = time.time()
+    issues = find_issues_in_code(
+        code,
+        language=language
+    )
+    print(f"   ✅ Analysis done in {time.time()-t1:.1f}s")
 
-# --- OpenAI Configuration (Lazy Load) ---
-openai_client = None
+    # Step 2 — Refactor AND Explain TOGETHER
+    # Both run at same time = saves 5 seconds!
+    print("2️⃣ Refactoring + Explaining simultaneously...")
+    t2 = time.time()
 
-def get_openai_client():
-    """Helper to load OpenAI client only when needed."""
-    global openai_client
-    if openai_client:
-        return openai_client
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    openai_client = OpenAI(api_key=api_key)
-    return openai_client
+    refactored = None
+    explanation = None
 
-def call_gemini_with_fallback(
-    full_prompt: str,
-    max_tokens: int,
-    temperature: float,
-    preferred_model: str = None
-) -> str:
-    """
-    Tries multiple Gemini models in order.
-    If one fails with quota error, automatically tries next.
-    """
-    # Build model list — preferred model first if specified
-    models_to_try = []
-    if preferred_model:
-        models_to_try.append(preferred_model)
-    for m in GEMINI_MODELS:
-        if m not in models_to_try:
-            models_to_try.append(m)
+    with ThreadPoolExecutor(max_workers=2) as executor:
 
-    safety_settings = [
-        types.SafetySetting(
-            category="HARM_CATEGORY_HARASSMENT",
-            threshold="BLOCK_NONE"
-        ),
-        types.SafetySetting(
-            category="HARM_CATEGORY_HATE_SPEECH",
-            threshold="BLOCK_NONE"
-        ),
-        types.SafetySetting(
-            category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold="BLOCK_NONE"
-        ),
-        types.SafetySetting(
-            category="HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold="BLOCK_NONE"
-        ),
-    ]
-
-    last_error = None
-
-    for model in models_to_try:
-        try:
-            print(f"Trying model: {model}")
-            response = gemini_client.models.generate_content(
-                model=model,
-                contents=full_prompt,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=max_tokens,
-                    temperature=temperature,
-                    safety_settings=safety_settings
-                )
-            )
-
-            if not response.text:
-                print(f"Model {model} returned empty response, trying next...")
-                continue
-
-            print(f"Success with model: {model}")
-            return response.text.strip().replace("```", "").strip()
-
-        except Exception as e:
-            error_str = str(e)
-            last_error = error_str
-
-            # Quota exceeded — try next model
-            if "429" in error_str:
-                print(f"Model {model} quota exceeded, trying next...")
-                continue
-
-            # Model not found — try next model
-            elif "404" in error_str:
-                print(f"Model {model} not found, trying next...")
-                continue
-
-            # Service unavailable — try next model
-            elif "503" in error_str:
-                print(f"Model {model} unavailable, trying next...")
-                continue
-
-            # Unknown error — try next model
-            else:
-                print(f"Model {model} error: {e}, trying next...")
-                continue
-
-    # All models failed
-    return f"Gemini LLM error: All models exhausted. Last error: {last_error}"
-
-def call_llm(
-    prompt: str,
-    system_prompt: str = None,
-    provider: str = "google",
-    model: str = None,
-    max_tokens: int = 3000,
-    temperature: float = 0.2
-) -> str:
-    """
-    Calls the specified LLM provider with the given prompt.
-    Automatically falls back to next model on quota errors.
-    """
-    final_system_prompt = system_prompt or "You are a helpful senior software engineer."
-
-    if provider == "google":
-        if not gemini_client:
-            return "LLM Error: Gemini client is not configured. Check GOOGLE_API_KEY."
-
-        full_prompt = f"System: {final_system_prompt}\n\nUser: {prompt}"
-
-        return call_gemini_with_fallback(
-            full_prompt=full_prompt,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            preferred_model=model
+        # Submit BOTH at same time
+        refactor_future = executor.submit(
+            refactor_code,
+            code,
+            issues,
+            language
         )
 
-    elif provider == "openai":
-        client = get_openai_client()
-        if not client:
-            return "LLM Error: OpenAI client is not configured. Check OPENAI_API_KEY."
+        explain_future = executor.submit(
+            explain_changes,
+            code,
+            "",
+            issues,
+            language
+        )
 
-        current_model = model or "gpt-4o-mini"
+        # Get results
+        refactored = refactor_future.result()
+        explanation = explain_future.result()
 
+    print(f"   ✅ Both done in {time.time()-t2:.1f}s")
+
+    total = time.time() - total_start
+    print(f"\n⚡ Total: {total:.1f} seconds")
+
+    # Save reports
+    ext = LANGUAGE_EXTENSIONS.get(
+        f".{language.lower()}", ".py"
+    )
+
+    REPORT_DIR.joinpath("issues.json").write_text(
+        json.dumps(issues, indent=2),
+        encoding="utf-8"
+    )
+    REPORT_DIR.joinpath(
+        f"refactored{ext}"
+    ).write_text(refactored, encoding="utf-8")
+    REPORT_DIR.joinpath(
+        "explanation.txt"
+    ).write_text(explanation, encoding="utf-8")
+
+    return {
+        "original_code": code,
+        "issues": issues,
+        "refactored_code": refactored,
+        "explanation": explanation,
+        "language": language,
+        "processing_time": round(total, 1)
+    }
+
+def process_batch_files(uploaded_files):
+    batch_results = {}
+
+    for file in uploaded_files:
         try:
-            resp = client.chat.completions.create(
-                model=current_model,
-                messages=[
-                    {"role": "system", "content": final_system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature,
+            ext = os.path.splitext(
+                file.name
+            )[1].lower()
+            language = LANGUAGE_EXTENSIONS.get(
+                ext, "Python"
             )
-            return resp.choices[0].message.content.strip()
-        except APIError as e:
-            return f"OpenAI API error: {e}"
+            file.seek(0)
+            content = file.read().decode("utf-8")
+            batch_results[file.name] = (
+                run_pipeline_from_string(
+                    content,
+                    language=language
+                )
+            )
         except Exception as e:
-            return f"OpenAI LLM error: {e}"
+            batch_results[file.name] = {
+                "error": str(e)
+            }
 
-    else:
-        return f"LLM Error: Unknown provider '{provider}'. Use 'google' or 'openai'."
+    return batch_results
