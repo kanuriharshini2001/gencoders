@@ -38,7 +38,7 @@ def call_llm(
     system_prompt: str = None,
     provider: str = "google",
     model: str = None,
-    max_tokens: int = 1024,
+    max_tokens: int = 3000,
     temperature: float = 0.2
 ) -> str:
     """
