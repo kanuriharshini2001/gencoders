@@ -147,7 +147,6 @@ def explain_changes(original: str, refactored: str,
     
     Write a COMPLETE educational explanation following this structure:
     
-    ## AI-Generated Documentation
     
     Write a brief friendly introduction mentioning this is {language} code.
     
